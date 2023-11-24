@@ -1,6 +1,12 @@
+libpve-common-perl (8.1.0-1) bookworm; urgency=medium
+
+  * tools: remove mknod syscall#
+
+ -- Jiangcuo <jiangcuo@bingsin.com>  Tue, 21 Nov 2023 13:04:21 +0100
+
 libpve-common-perl (8.1.0) bookworm; urgency=medium
 
-  * tools: Add mknod syscall
+  * tools: Add mknod syscall#
 
   * tools: Add mount flag constants
 
