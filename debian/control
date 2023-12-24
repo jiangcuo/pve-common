@@ -1,7 +1,7 @@
 Source: libpve-common-perl
 Section: perl
 Priority: optional
-Maintainer: Proxmox Support Team <support@proxmox.com>
+Maintainer: Jiangcuo <jiangcuo@bingsin.com>
 Build-Depends: debhelper-compat (= 13),
                libanyevent-perl,
                libclone-perl,

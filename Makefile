@@ -19,7 +19,7 @@ dinstall: deb
 $(BUILDDIR): src debian test
 	rm -rf $(BUILDDIR) $(BUILDDIR).tmp; mkdir $(BUILDDIR).tmp
 	cp -a -t $(BUILDDIR).tmp $^ Makefile
-	echo "git clone git://git.proxmox.com/git/pve-common.git\\ngit checkout $(shell git rev-parse HEAD)" > $(BUILDDIR).tmp/debian/SOURCE
+	echo "git clone https://github.com/jiangcuo/pve-common.git\\ngit checkout $(shell git rev-parse HEAD)" > $(BUILDDIR).tmp/debian/SOURCE
 	mv $(BUILDDIR).tmp $(BUILDDIR)
 
 .PHONY: deb
