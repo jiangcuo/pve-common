@@ -1,8 +1,20 @@
-libpve-common-perl (8.1.0-1) bookworm; urgency=medium
+libpve-common-perl (8.1.1) bookworm; urgency=medium
 
-  * tools: remove mknod syscall#
+  * fix #5141: network parser: fix accidental RE result re-use and add tests
 
- -- Jiangcuo <jiangcuo@bingsin.com>  Tue, 21 Nov 2023 13:04:21 +0100
+  * network tests: switch to ifupdown2
+
+  * network parser: iterate deterministically
+
+  * schema: fixup description vs format_description in remote_format
+
+  * add PVE::Systemd::is_unit_active
+
+  * ticket: remove fallback for SHA1-base64 CSRF prevention tokens
+
+  * expose SYS_prctl
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 Mar 2024 12:03:00 +0100
 
 libpve-common-perl (8.1.0) bookworm; urgency=medium
 
@@ -102,6 +114,12 @@ libpve-common-perl (8.0.2) bookworm; urgency=medium
   * remove unused SysFSTools::pci_cleanup_mdev_device
 
  -- Proxmox Support Team <support@proxmox.com>  Wed, 07 Jun 2023 13:12:18 +0200
+ 
+libpve-common-perl (8.1.0-1) bookworm; urgency=medium
+
+  * tools: remove mknod syscall#
+
+ -- Jiangcuo <jiangcuo@bingsin.com>  Tue, 21 Nov 2023 13:04:21 +0100
 
 libpve-common-perl (8.0.1) bookworm; urgency=medium
 
