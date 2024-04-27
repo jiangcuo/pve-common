@@ -84,6 +84,7 @@ register_standard_option('pve-iface', {
 register_standard_option('pve-storage-id', {
     description => "The storage identifier.",
     type => 'string', format => 'pve-storage-id',
+    format_description => 'storage ID',
 });
 
 register_standard_option('pve-bridge-id', {
@@ -697,7 +698,7 @@ my $remote_format = {
     apitoken => {
 	type => 'string',
 	description => 'A full Proxmox API token including the secret value.',
-	format_description => 'user@realm!token=SECRET',
+	format_description => 'PVEAPIToken=user@realm!token=SECRET',
     },
     fingerprint => get_standard_option(
 	'fingerprint-sha256',
