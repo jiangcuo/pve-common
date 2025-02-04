@@ -2,7 +2,7 @@ include /usr/share/dpkg/pkg-info.mk
 
 PACKAGE=libpve-common-perl
 
-ARCH=all
+ARCH:=$(shell dpkg-architecture -qDEB_BUILD_ARCH)
 
 BUILDDIR ?= $(PACKAGE)-$(DEB_VERSION_UPSTREAM)
 
