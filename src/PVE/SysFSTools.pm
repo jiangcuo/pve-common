@@ -103,17 +103,21 @@ sub lspci {
 	    return;
 	}
 
+	$res->{iommugroup} = -1;
+	if (-e "$devdir/iommu_group") {
+	    my ($iommugroup) = (readlink("$devdir/iommu_group") =~ m/\/(\d+)$/);
+	    $res->{iommugroup} = int($iommugroup);
+	}
+
+	if (-d "$devdir/mdev_supported_types") {
+	    $res->{mdev} = 1;
+	} elsif (-d "$devdir/nvidia") {
+	    # nvidia driver for kernel 6.8 or higher
+	    $res->{mdev} = 1; # for api compatibility
+	    $res->{nvidia} = 1;
+	}
+
 	if ($verbose) {
-	    $res->{iommugroup} = -1;
-	    if (-e "$devdir/iommu_group") {
-		my ($iommugroup) = (readlink("$devdir/iommu_group") =~ m/\/(\d+)$/);
-		$res->{iommugroup} = int($iommugroup);
-	    }
-
-	    if (-d "$devdir/mdev_supported_types") {
-		$res->{mdev} = 1;
-	    }
-
 	    my $device_hash = $ids->{$vendor}->{devices}->{$device} // {};
 
 	    my $sub_vendor = file_read_firstline("$devdir/subsystem_vendor");
@@ -159,30 +163,45 @@ sub get_mdev_types {
 
     my $types = [];
 
-    my $mdev_path = "$pcisysfs/devices/$id/mdev_supported_types";
-    if (!-d $mdev_path) {
-	return $types;
+    my $dev_path = "$pcisysfs/devices/$id";
+    my $mdev_path = "$dev_path/mdev_supported_types";
+    my $nvidia_path = "$dev_path/nvidia/creatable_vgpu_types";
+    if (-d $mdev_path) {
+	dir_glob_foreach($mdev_path, '[^\.].*', sub {
+	    my ($type) = @_;
+
+	    my $type_path = "$mdev_path/$type";
+
+	    my $available = int(file_read_firstline("$type_path/available_instances"));
+	    my $description = PVE::Tools::file_get_contents("$type_path/description");
+
+	    my $entry = {
+		type => $type,
+		description => $description,
+		available => $available,
+	    };
+
+	    my $name = file_read_firstline("$type_path/name");
+	    $entry->{name} = $name if defined($name);
+
+	    push @$types, $entry;
+	});
+    } elsif (-f $nvidia_path) {
+	my $creatable = PVE::Tools::file_get_contents($nvidia_path);
+	for my $line (split("\n", $creatable)) {
+	    next if $line =~ m/^ID/; # header
+	    next if $line !~ m/^(.*?)\s*:\s*(.*)$/;
+	    my $id = $1;
+	    my $name = $2;
+
+	    push $types->@*, {
+		type => "nvidia-$id", # backwards compatibility
+		description => "", # TODO, read from xml/nvidia-smi ?
+		available => 1,
+		name  => $name,
+	    }
+	}
     }
-
-    dir_glob_foreach($mdev_path, '[^\.].*', sub {
-	my ($type) = @_;
-
-	my $type_path = "$mdev_path/$type";
-
-	my $available = int(file_read_firstline("$type_path/available_instances"));
-	my $description = PVE::Tools::file_get_contents("$type_path/description");
-
-	my $entry = {
-	    type => $type,
-	    description => $description,
-	    available => $available,
-	};
-
-	my $name = file_read_firstline("$type_path/name");
-	$entry->{name} = $name if defined($name);
-
-	push @$types, $entry;
-    });
 
     return $types;
 }
@@ -192,17 +211,26 @@ sub check_iommu_support{
     return PVE::Tools::dir_glob_regex('/sys/class/iommu/', "[^\.].*");
 }
 
+# writes $buf into $filename, on success returns 1, on error returns 0 and warns
+# if $allow_existing is set, an EEXIST error will be handled as success
 sub file_write {
-    my ($filename, $buf) = @_;
+    my ($filename, $buf, $allow_existing) = @_;
 
     my $fh = IO::File->new($filename, "w");
     return undef if !$fh;
 
-    my $res = print $fh $buf;
-
+    my $res = syswrite($fh, $buf);
+    my ($syserr, %syserr) = ($!, %!); # only relevant if $res is undefined
     $fh->close();
 
-    return $res;
+    if (defined($res)) {
+	return 1;
+    } elsif ($syserr) {
+	return 1 if $allow_existing && $syserr{EEXIST};
+	warn "error writing '$buf' to '$filename': $syserr\n";
+    }
+
+    return 0;
 }
 
 sub pci_device_info {
@@ -284,7 +312,8 @@ sub pci_dev_bind_to_vfio {
     return 1 if -d $testdir;
 
     my $data = "$dev->{vendor} $dev->{device}";
-    return undef if !file_write("$vfio_basedir/new_id", $data);
+    # allow EEXIST for multiple devices with the same vendor/modelid
+    return undef if !file_write("$vfio_basedir/new_id", $data, 1);
 
     my $fn = "$pcisysfs/devices/$name/driver/unbind";
     if (!file_write($fn, $name)) {

@@ -285,10 +285,33 @@ sub file_set_contents {
 	}
 	die "unable to open file '$tmpname' - $!\n" if !$fh;
 
-	binmode($fh, ":encoding(UTF-8)") if $force_utf8;
+	if ($force_utf8) {
+	    $data = encode("utf8", $data);
+	} else {
+	    # Encode wide characters with print before passing them to syswrite
+	    my $unencoded_data = $data;
+	    # Preload PerlIO::scalar at compile time to prevent runtime loading issues when
+	    # file_set_contents is called with PVE::LXC::Setup::protected_call. Normally,
+	    # PerlIO::scalar is loaded implicitly during the execution of
+	    # `open(my $data_fh, '>', \$data)`. However, this fails if it is executed within a
+	    # chroot environment where the necessary PerlIO.pm module file is inaccessible.
+	    # Preloading the module ensures it is available regardless of the execution context.
+	    use PerlIO::scalar;
+	    open(my $data_fh, '>', \$data) or die "failed to open in-memory variable - $!\n";
+	    print $data_fh $unencoded_data;
+	    close($data_fh);
+	}
 
-	die "unable to write '$tmpname' - $!\n" unless print $fh $data;
-	die "closing file '$tmpname' failed - $!\n" unless close $fh;
+	my $offset = 0;
+	my $len = length($data);
+
+	while ($offset < $len) {
+	    my $written_bytes = syswrite($fh, $data, $len - $offset, $offset)
+		or die "unable to write '$tmpname' - $!\n";
+	    $offset += $written_bytes;
+	}
+
+	close $fh or die "closing file '$tmpname' failed - $!\n";
     };
     my $err = $@;
 
@@ -1003,7 +1026,7 @@ sub must_stringify {
 # sigkill after $timeout  a $sub running in a fork if it can't write a pipe
 # the $sub has to return a single scalar
 sub run_fork_with_timeout {
-    my ($timeout, $sub) = @_;
+    my ($timeout, $sub, $opts) = @_;
 
     my $res;
     my $error;
@@ -1052,17 +1075,28 @@ sub run_fork_with_timeout {
 	$error = $child_res->{error};
     };
 
+    my $handle_forked = sub {
+	if (my $afterfork = $opts->{afterfork}) {
+	    eval { $afterfork->($child); };
+	    if (my $err = $@) {
+		$error = $err; # propagate error
+		die $err;
+	    }
+	}
+	$readvalues->();
+    };
+
     my $got_timeout = 0;
     my $wantarray = wantarray; # so it can be queried inside eval
     eval {
 	if (defined($timeout)) {
 	    if ($wantarray) {
-		(undef, $got_timeout) = run_with_timeout($timeout, $readvalues);
+		(undef, $got_timeout) = run_with_timeout($timeout, $handle_forked);
 	    } else {
-		run_with_timeout($timeout, $readvalues);
+		run_with_timeout($timeout, $handle_forked);
 	    }
 	} else {
-	    $readvalues->();
+	    $handle_forked->();
 	}
     };
     warn $@ if $@;
@@ -1079,8 +1113,8 @@ sub run_fork_with_timeout {
 }
 
 sub run_fork {
-    my ($code) = @_;
-    return run_fork_with_timeout(undef, $code);
+    my ($code, $opts) = @_;
+    return run_fork_with_timeout(undef, $code, $opts);
 }
 
 # NOTE: NFS syscall can't be interrupted, so alarm does
@@ -2028,6 +2062,8 @@ sub safe_compare {
 #  https_proxy
 #  verify_certificates - if 0 (false) we tell wget to ignore untrusted TLS certs. Default to true
 #  md5sum|sha(1|224|256|384|512)sum - the respective expected checksum string
+#  assert_file_validity - a subroutine to verify the extracted/downloaded file. gets the tmp path as parameter
+#                         should die when the downloaded file is not valid
 sub download_file_from_url {
     my ($dest, $url, $opts) = @_;
 
@@ -2113,10 +2149,15 @@ sub download_file_from_url {
 	    print "decompressing $tmp_download to $tmp_decomp\n";
 	    run_command($cmd, output => '>&'.fileno($fh));
 	    unlink $tmp_download;
-	    rename($tmp_decomp, $dest) or die "unable to rename temporary file: $!\n";
-	} else {
-	    rename($tmp_download, $dest) or die "unable to rename temporary file: $!\n";
+	    $tmp_download = $tmp_decomp;
 	}
+
+	if (my $assertion = $opts->{assert_file_validity}) {
+	    eval { $assertion->($tmp_download); };
+	    die "failed to verify file: $@" if $@;
+	}
+
+	rename($tmp_download, $dest) or die "unable to rename temporary file: $!\n";
     };
     if (my $err = $@) {
 	unlink $tmp_download or warn "could not cleanup temporary file: $!"

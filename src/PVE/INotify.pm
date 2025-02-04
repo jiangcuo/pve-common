@@ -22,7 +22,6 @@ use PVE::Network;
 use PVE::ProcFSTools;
 use PVE::SafeSyslog;
 use PVE::Tools;
-use PVE::RESTEnvironment qw(log_warn);
 
 use base 'Exporter';
 
@@ -748,7 +747,7 @@ my $parse_ovs_option = sub {
     my $opts = {};
     foreach my $kv (split (/\s+/, $data || '')) {
 	my ($k, $v) = split('=', $kv, 2);
-	$opts->{$k} = $v if $k && $v;
+	$opts->{$k} = $v if $k && defined($v);
     }
     return $opts;
 };
@@ -1145,9 +1144,6 @@ sub __read_etc_network_interfaces {
 	    }
 	}
 
-	log_warn("detected a interface $iface that is not a bridge!")
-	    if !($d->{type} eq 'OVSBridge' || $d->{type} eq 'bridge') && $iface =~ m/^vmbr\d+$/;
-
 	# map address and netmask to cidr
 	if (my $addr = $d->{address}) {
 	    if (_address_is_cidr($addr)) {
@@ -1315,7 +1311,7 @@ sub __interface_to_string {
 
 	if (defined($d->{bridge_vlan_aware})) {
 	    $raw .= "\tbridge-vlan-aware yes\n";
-	    my $vlans = defined($d->{bridge_vids}) ? $d->{bridge_vids} : "2-4094";
+	    my $vlans = $d->{bridge_vids} ? $d->{bridge_vids} : "2-4094";
 	    $raw .= "\tbridge-vids $vlans\n";
 	}
 	$done->{bridge_vlan_aware} = 1;

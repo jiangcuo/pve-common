@@ -1,3 +1,82 @@
+libpve-common-perl (8.2.9) bookworm; urgency=medium
+
+  * tools: run fork: allow running code in parent after fork
+
+  * tools: download file: add a verification callback to allow the call-site
+    to make context-specific assertions about the file content while it was
+    not yet copied to the target storage.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 18 Nov 2024 15:44:41 +0100
+
+libpve-common-perl (8.2.8) bookworm; urgency=medium
+
+  * Revert "section config: make subroutine `delete_from_config` private"
+
+  * network: tap plug: add support for bridge port isolation, blocking all
+    traffic between ports with the isolation flag while still allowing traffic
+    with uplink ports of the bridge.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 12 Nov 2024 17:05:01 +0100
+
+libpve-common-perl (8.2.7) bookworm; urgency=medium
+
+  * fix #5623: OVS: avoid that config options set explicitly to `0` are
+    ignored.
+
+  * network config: drop warning for having a `vmbrX` interface that isn't a
+    bridge to avoid a cyclic use statement for this unlikely edge-case.
+
+  * sysfs tools: log full error if writing to a control file fails
+
+  * sysfs tools: fix regression on binding to vfio-pci when there are multiple
+    devices of the same (vendor-id, model-id) tuple, like with multiple GPUs
+    that have the same audio chip by allowing to ignore a "already existing"
+    error.
+
+  * network config: check if 'bridge_vids' property is not just an empty
+    string.
+
+  * partiually fix #3893: network: add formats for passing a VLAN id or range
+    parameter.
+
+  * fix #5454: net: assert names for vlan bridge slave interfaces are valid
+
+  * net: assert validity of names also when creating bridge and veth interfaces
+
+  * REST environment: also log warning messages to syslog
+
+  * pbs client: various code cleanups and refactoring
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 11 Nov 2024 20:29:21 +0100
+
+libpve-common-perl (8.2.6) bookworm; urgency=medium
+
+  * sysfs tools: properly catch errors when updating kernel/module parameters
+    at runtime.
+
+  * sysfs tools: handle the modern API that the NVIDIAs vGPU provides for
+    kernel version 6.8 and newer.
+
+  * sysfs tools: always include mdev and IOMMU group information when
+    gathering info about available PCI devices
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 24 Oct 2024 18:37:46 +0200
+
+libpve-common-perl (8.2.5) bookworm; urgency=medium
+
+  * explicitly load the PerlIO base module to avoid some odd edge cases where
+    perl isn't able to do so automatically.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 19 Oct 2024 16:36:20 +0200
+
+libpve-common-perl (8.2.4) bookworm; urgency=medium
+
+  * file set contents: use syswrite instead of print to avoid chunking write
+    into 8 KiB blocks, which can increase the overhead of the write operation
+    on the underlying storage.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 16 Oct 2024 19:02:19 +0200
+
 libpve-common-perl (8.2.3) bookworm; urgency=medium
 
   * schema: adapt description of method's 'download' key and rename it to
