@@ -4,6 +4,8 @@ use strict;
 use warnings;
 
 use IO::File;
+use File::Basename;
+use Cwd 'realpath';
 
 use PVE::Tools qw(file_read_firstline dir_glob_foreach);
 
@@ -91,6 +93,8 @@ sub lspci {
 	my $vendor = file_read_firstline("$devdir/vendor");
 	my $device = file_read_firstline("$devdir/device");
 	my $class = file_read_firstline("$devdir/class");
+	my $driver_inuse = basename(realpath("$devdir/driver"));
+
 
 	my $res = {
 	    id => $id,
@@ -134,6 +138,7 @@ sub lspci {
 	    $res->{subsystem_device} = $sub_device if defined($sub_device);
 	    $res->{subsystem_vendor_name} = $sub_vendor_name if defined($sub_vendor_name);
 	    $res->{subsystem_device_name} = $sub_device_name if defined($sub_device_name);
+		$res->{driver_inuse} = $driver_inuse;
 	}
 
 	push @$devices, $res;
