@@ -495,5 +495,42 @@ sub pcitool {
     }
 }
 
+sub pciprobe {
+    my ($pciid,$blacklist,$driver,$clean) = @_;
+
+    $blacklist = 0 if ! defined $blacklist; 
+
+    my $basedir = "/etc/modules-load.d/";
+    my $blacklistdir = "/etc/modprobe.d/";
+
+    die "OS ERROR!\n" if ! -d $basedir;
+    die "OS ERROR!\n" if ! -d $blacklistdir;
+
+    if (defined $clean && $clean ){
+        system("rm -rf $blacklistdir/$pciid*.conf");
+        system("rm -rf $basedir/$pciid*.conf");
+        return "ok";
+    }
+
+    if (! $blacklist ) {
+        if (!defined $driver) {
+            $driver = 'vfio-pci';
+        }
+        if (! -d "/sys/bus/pci/drivers/$driver") {
+        system("/bin/modprobe $driver >/dev/null 2>/dev/null");
+        }
+        die "Cannot find $driver module!\n" if ! -d "/sys/bus/pci/drivers/$driver";
+        system("rm $basedir/$pciid.conf") if -f "$basedir/$pciid.conf";
+        my $str = "options vfio-pci ids=$pciid";
+        file_write("$basedir/$pciid.conf",$str);
+    } else {
+        system("rm $blacklistdir/$pciid-$driver-blacklist.conf") if -f "$blacklistdir/$pciid-$driver-blacklist.conf";
+        my $str = "blacklist $driver";
+        file_write("/etc/modprobe.d/$pciid-$driver-blacklist.conf",$str);
+    }
+
+}
+
+
 
 1;
