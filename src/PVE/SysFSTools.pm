@@ -466,4 +466,34 @@ sub scan_usb {
     return $devlist;
 }
 
+sub pcitool {
+    my ($pciid,$options,$driver) = @_;
+
+    my $basedir = "$pcisysfs/devices/$pciid";
+
+    die "Cannot find $pciid device!\n" if ! -d $basedir;
+
+    if ( $options eq 'bind' ){
+        if (!defined $driver) {
+            $driver = 'vfio-pci';
+        }
+        if (! -d "/sys/bus/pci/drivers/$driver") {
+        system("/bin/modprobe $driver >/dev/null 2>/dev/null");
+        }
+        die "Cannot find $driver module!\n" if ! -d "/sys/bus/pci/drivers/$driver";
+        die "Cannot bind $driver when device is bind\n" if -d "/sys/bus/pci/device/$pciid/driver";
+        file_write("/sys/bus/pci/drivers/$driver/bind",$pciid);
+    } elsif ( $options eq 'unbind' ){
+        file_write("$basedir/driver/unbind",$pciid);
+    } elsif ( $options eq 'reset' ){
+        file_write("$basedir/remove","1");
+        if ( -f "/sys/bus/pci/device/$pciid/reset" ){
+            file_write("/sys/bus/pci/device/$pciid/reset","1");
+        }else{
+            file_write("/sys/bus/pci/rescan","1");
+        }
+    }
+}
+
+
 1;
