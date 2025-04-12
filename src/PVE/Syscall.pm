@@ -14,6 +14,7 @@ BEGIN {
 	setns => &SYS_setns,
 	syncfs => &SYS_syncfs,
 	fsync => &SYS_fsync,
+	mknod => &SYS_mknodat, # need mknodat for all platforms!
 	openat => &SYS_openat,
 	close => &SYS_close,
 	mkdirat => &SYS_mkdirat,
