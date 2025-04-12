@@ -27,6 +27,8 @@ use Text::ParseWords;
 use Time::HiRes qw(usleep gettimeofday tv_interval alarm);
 use URI::Escape;
 use base 'Exporter';
+use File::Basename;
+use Cwd 'realpath';
 
 use PVE::Syscall;
 
@@ -1787,8 +1789,14 @@ sub mkdirat($$$) {
 
 sub mknod($$$) {
     my ($filename, $mode, $dev) = @_;
-	die "https://github.com/jiangcuo/Proxmox-Arm64/issues/58";
-    #return syscall(PVE::Syscall::SYS_mknod, $filename, int($mode), int($dev)) == 0;
+	# Actually, we need mknodat syscall for all platforms!
+	# But we still use mknod name for compatibility.
+	my $dir = dirname($filename);
+	my $dirfd = syscall(&PVE::Syscall::SYS_openat, -100, $dir, 0);
+	die "Can't open dir: $!" if $dirfd < 0;
+    my $result =  syscall(PVE::Syscall::mknod, $dirfd, $filename, int($mode), int($dev)) == 0;
+	syscall(&PVE::Syscall::SYS_close, $dirfd);
+	return $result;
 }
 
 sub fchownat($$$$$) {
