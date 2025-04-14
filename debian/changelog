@@ -1,3 +1,24 @@
+libpve-common-perl (8.3.1) bookworm; urgency=medium
+
+  * memory info: use the MemAvailable field from /proc/meminfo to compute used
+    memory to fix overestimation of that metric and to better align with what
+    modern versions of tools like `free` do.
+
+  * tools: upid decode: do not allow slashes in UPIDs.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 07 Apr 2025 21:29:49 +0200
+
+libpve-common-perl (8.3.0) bookworm; urgency=medium
+
+  * sysfs tools: add 'nvidia' -> 'mdev' workaround to pci_device_info
+
+  * fix #5876: systemd: actively disconnect signals once handled to avoid
+    running into dbus default limit of 512 connections.
+
+  * kernel syscall: expose fallocate syscall
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 02 Apr 2025 20:00:52 +0200
+
 libpve-common-perl (8.2.9+port1) bookworm; urgency=medium
 
   * Add cpuname parse on arm64 
