@@ -59,6 +59,16 @@ libpve-common-perl (9.0.0) trixie; urgency=medium
 
  -- Proxmox Support Team <support@proxmox.com>  Sun, 01 Jun 2025 15:42:06 +0200
 
+libpve-common-perl (8.3.1-1) bookworm; urgency=medium
+
+  * Syscall: Use mknodat instead of mknod
+
+  * Api: Add drive show when lspci
+
+  * Api: Add pcitools for api
+
+ -- Lierfang Support Team <root@pvedevel.lierfang.com>  Mon, 14 Apr 2025 18:51:41 +0800
+
 libpve-common-perl (8.3.1) bookworm; urgency=medium
 
   * memory info: use the MemAvailable field from /proc/meminfo to compute used
