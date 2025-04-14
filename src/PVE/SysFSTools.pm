@@ -4,6 +4,8 @@ use strict;
 use warnings;
 
 use IO::File;
+use File::Basename;
+use Cwd 'realpath';
 
 use PVE::Tools qw(file_read_firstline dir_glob_foreach);
 
@@ -92,9 +94,11 @@ sub lspci {
 
             my $devdir = "$pcisysfs/devices/$fullid";
 
-            my $vendor = file_read_firstline("$devdir/vendor");
-            my $device = file_read_firstline("$devdir/device");
-            my $class = file_read_firstline("$devdir/class");
+	my $vendor = file_read_firstline("$devdir/vendor");
+	my $device = file_read_firstline("$devdir/device");
+	my $class = file_read_firstline("$devdir/class");
+	my $driver_inuse = basename(realpath("$devdir/driver"));
+
 
             my $res = {
                 id => $id,
@@ -132,6 +136,7 @@ sub lspci {
                 my $sub_vendor_name = $ids->{$sub_vendor}->{name};
                 my $sub_device_name = $device_hash->{subs}->{$sub_vendor}->{$sub_device};
 
+<<<<<<< HEAD
                 $res->{vendor_name} = $vendor_name if defined($vendor_name);
                 $res->{device_name} = $device_name if defined($device_name);
                 $res->{subsystem_vendor} = $sub_vendor if defined($sub_vendor);
@@ -139,6 +144,16 @@ sub lspci {
                 $res->{subsystem_vendor_name} = $sub_vendor_name if defined($sub_vendor_name);
                 $res->{subsystem_device_name} = $sub_device_name if defined($sub_device_name);
             }
+=======
+	    $res->{vendor_name} = $vendor_name if defined($vendor_name);
+	    $res->{device_name} = $device_name if defined($device_name);
+	    $res->{subsystem_vendor} = $sub_vendor if defined($sub_vendor);
+	    $res->{subsystem_device} = $sub_device if defined($sub_device);
+	    $res->{subsystem_vendor_name} = $sub_vendor_name if defined($sub_vendor_name);
+	    $res->{subsystem_device_name} = $sub_device_name if defined($sub_device_name);
+		$res->{driver_inuse} = $driver_inuse;
+	}
+>>>>>>> 929d526 (add pxvirt pciprobe and pcitool and show driver in lspci)
 
             push @$devices, $res;
         },
@@ -474,5 +489,69 @@ sub scan_usb {
 
     return $devlist;
 }
+
+sub pcitool {
+    my ($pciid,$options,$driver) = @_;
+
+    my $basedir = "$pcisysfs/devices/$pciid";
+
+    die "Cannot find $pciid device!\n" if ! -d $basedir;
+
+    if ( $options eq 'bind' ){
+        if (!defined $driver) {
+            $driver = 'vfio-pci';
+        }
+        if (! -d "/sys/bus/pci/drivers/$driver") {
+        system("/bin/modprobe $driver >/dev/null 2>/dev/null");
+        }
+        die "Cannot find $driver module!\n" if ! -d "/sys/bus/pci/drivers/$driver";
+        die "Cannot bind $driver when device is bind\n" if -d "/sys/bus/pci/device/$pciid/driver";
+        file_write("/sys/bus/pci/drivers/$driver/bind",$pciid);
+    } elsif ( $options eq 'unbind' ){
+        file_write("$basedir/driver/unbind",$pciid);
+    } elsif ( $options eq 'reset' ){
+        file_write("$basedir/remove","1");
+        if ( -f "/sys/bus/pci/device/$pciid/reset" ){
+            file_write("/sys/bus/pci/device/$pciid/reset","1");
+        }else{
+            file_write("/sys/bus/pci/rescan","1");
+        }
+    }
+}
+
+sub pciprobe {
+    my ($pciid,$blacklist,$driver,$clean) = @_;
+
+    $blacklist = 0 if ! defined $blacklist; 
+
+    my $basedir = "/etc/modules-load.d/";
+    my $blacklistdir = "/etc/modprobe.d/";
+
+    die "OS ERROR!\n" if ! -d $basedir;
+    die "OS ERROR!\n" if ! -d $blacklistdir;
+
+    if (defined $clean && $clean ){
+        system("rm -rf $blacklistdir/$pciid*.conf");
+        system("rm -rf $basedir/$pciid*.conf");
+        return "ok";
+    }
+
+    if (! $blacklist ) {
+
+        if (! -d "/sys/bus/pci/drivers/$driver") {
+        system("/bin/modprobe $driver >/dev/null 2>/dev/null");
+        }
+        die "Cannot find $driver module!\n" if ! -d "/sys/bus/pci/drivers/$driver";
+        system("rm $basedir/$pciid.conf") if -f "$basedir/$pciid.conf";
+        my $str = "options vfio-pci ids=$pciid";
+        file_write("$basedir/$pciid.conf",$str);
+    } else {
+        system("rm $blacklistdir/$pciid-$driver-blacklist.conf") if -f "$blacklistdir/$pciid-$driver-blacklist.conf";
+        my $str = "blacklist $driver";
+        file_write("/etc/modprobe.d/$pciid-$driver-blacklist.conf",$str);
+    }
+
+}
+
 
 1;
