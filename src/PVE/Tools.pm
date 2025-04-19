@@ -2247,4 +2247,74 @@ sub is_deeply {
     return 1;
 }
 
+sub decode_punycode {
+    my $input = shift;
+    
+    return $input unless $input =~ /^xn--/;
+    
+    # remove xn-- prefix
+    $input =~ s/^xn--//;
+
+    my $n = 0x80;
+    my $i = 0;
+    my $bias = 72;
+    my @output;
+    
+    if ($input =~ /^(.*?)-(.*)$/) {
+        my $basic = $1;
+        $input = $2;
+        @output = split //, $basic;
+    }
+    
+    my $pos = 0;
+    while ($pos < length($input)) {
+        my $oldi = $i;
+        my $w = 1;
+        
+        for (my $k = 36;; $k += 36) {
+            last if $pos >= length($input);
+            my $digit = ord(substr($input, $pos++, 1));
+            
+            if ($digit >= ord('a') && $digit <= ord('z')) {
+                $digit = $digit - ord('a');
+            } elsif ($digit >= ord('A') && $digit <= ord('Z')) {
+                $digit = $digit - ord('A');
+            } elsif ($digit >= ord('0') && $digit <= ord('9')) {
+                $digit = $digit - ord('0') + 26;
+            } else {
+                die "Invalid punycode input";
+            }
+            
+            $i += $digit * $w;
+            my $t = ($k <= $bias) ? 1 : (($k >= $bias + 26) ? 26 : ($k - $bias));
+            last if $digit < $t;
+            $w *= (36 - $t);
+        }
+        
+        $bias = adapt($i - $oldi, scalar(@output) + 1, $oldi == 0);
+        $n += int($i / (scalar(@output) + 1));
+        $i %= (scalar(@output) + 1);
+        
+        splice(@output, $i, 0, chr($n));
+        $i++;
+    }
+    
+    return join('', @output);
+}
+
+sub adapt {
+    my ($delta, $numpoints, $firsttime) = @_;
+    $delta = $firsttime ? $delta / 700 : $delta / 2;
+    $delta += int($delta / $numpoints);
+    
+    my $k = 0;
+    while ($delta > 455) {
+        $delta = int($delta / 35);
+        $k += 36;
+    }
+    
+    return $k + int(36 * $delta / ($delta + 38));
+}
+
+
 1;
