@@ -2298,8 +2298,8 @@ sub decode_punycode {
         splice(@output, $i, 0, chr($n));
         $i++;
     }
-    
-    return join('', @output);
+    my $result = join('', @output);
+    return encode("utf8", $result);
 }
 
 sub adapt {
