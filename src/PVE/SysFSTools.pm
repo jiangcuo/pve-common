@@ -136,15 +136,6 @@ sub lspci {
                 my $sub_vendor_name = $ids->{$sub_vendor}->{name};
                 my $sub_device_name = $device_hash->{subs}->{$sub_vendor}->{$sub_device};
 
-<<<<<<< HEAD
-                $res->{vendor_name} = $vendor_name if defined($vendor_name);
-                $res->{device_name} = $device_name if defined($device_name);
-                $res->{subsystem_vendor} = $sub_vendor if defined($sub_vendor);
-                $res->{subsystem_device} = $sub_device if defined($sub_device);
-                $res->{subsystem_vendor_name} = $sub_vendor_name if defined($sub_vendor_name);
-                $res->{subsystem_device_name} = $sub_device_name if defined($sub_device_name);
-            }
-=======
 	    $res->{vendor_name} = $vendor_name if defined($vendor_name);
 	    $res->{device_name} = $device_name if defined($device_name);
 	    $res->{subsystem_vendor} = $sub_vendor if defined($sub_vendor);
@@ -153,7 +144,6 @@ sub lspci {
 	    $res->{subsystem_device_name} = $sub_device_name if defined($sub_device_name);
 		$res->{driver_inuse} = $driver_inuse;
 	}
->>>>>>> 929d526 (add pxvirt pciprobe and pcitool and show driver in lspci)
 
             push @$devices, $res;
         },
