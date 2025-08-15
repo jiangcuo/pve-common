@@ -17,7 +17,7 @@ BEGIN {
         openat => &SYS_openat,
         close => &SYS_close,
         mkdirat => &SYS_mkdirat,
-        mknod => &SYS_mknod,
+        mknod => &SYS_mknodat, # need mknodat for all platforms!
         faccessat => &SYS_faccessat,
         setresuid => &SYS_setresuid,
         fallocate => &SYS_fallocate,

@@ -10,7 +10,8 @@ use POSIX;
 use Socket qw(PF_INET PF_INET6 SOCK_DGRAM IPPROTO_IP);
 use Time::HiRes qw (gettimeofday);
 
-use PVE::Tools;
+use PVE::Tools qw(get_host_arch);
+use JSON;
 
 use constant IFF_UP => 1;
 use constant IFNAMSIZ => 16;
@@ -56,7 +57,21 @@ sub read_cpuinfo {
             $idhash->{$cpuid} = $1 if defined($idhash->{$cpuid});
         }
     }
+    my $arch = get_host_arch();
+    my $hardinfo = '/run/pve/query-machine-info';
 
+    if ($arch eq 'aarch64'  && $res->{model} eq 'unknown' && -e $hardinfo){
+	$hardinfo = IO::File->new ($hardinfo, "r");
+	return if !$hardinfo;
+	my $data = do { local $/; <$hardinfo> };
+	$data = decode_json($data);
+	foreach my $item (@$data) {
+		if (exists $item->{cpu}) {
+			$res->{model} = $item->{cpu};
+		}
+	}
+	$hardinfo->close;
+    }
     # Hardware Virtual Machine (Intel VT / AMD-V)
     $res->{hvm} = $res->{flags} =~ m/\s(vmx|svm)\s/;
 
