@@ -334,6 +334,8 @@ sub read_meminfo {
         swapfree => 0,
         swapused => 0,
         arcsize => 0,
+        arcmin => 0,
+        arcmax => 0,
     };
 
     my $fh = IO::File->new("/proc/meminfo", "r");
@@ -363,8 +365,19 @@ sub read_meminfo {
     $res->{memshared} = int($spages) * 4096;
 
     my $arc_stats = eval { PVE::Tools::file_get_contents("/proc/spl/kstat/zfs/arcstats") };
-    if ($arc_stats && $arc_stats =~ m/^size\s+\d+\s+(\d+)$/m) {
-        $res->{arcsize} = int($1);
+
+    if (my $arc_fh = IO::File->new("/proc/spl/kstat/zfs/arcstats", "r")) {
+        my $arc = {};
+        while (my $line = <$arc_fh>) {
+            if ($line =~ m/^(\S+)\s+\d+\s+(\d+)/) {
+                $arc->{ lc($1) } = int($2);
+            }
+        }
+        close($arc_fh);
+
+        $res->{arcsize} = $arc->{size} if defined($arc->{size});
+        $res->{arcmin} = $arc->{c_min} if defined($arc->{c_min});
+        $res->{arcmax} = $arc->{c_max} if defined($arc->{c_max});
     }
 
     return $res;
