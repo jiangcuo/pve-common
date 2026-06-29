@@ -1,3 +1,10 @@
+libpve-common-perl (8.3.4+pxvirt1) bookworm; urgency=medium
+
+  * ticket: clear the OpenSSL error queue after RSA sign and verify
+    operations.
+
+ -- Lierfang Support Team <itsupport@lierfang.com>  Mon, 29 Jun 2026 15:27:59 +0800
+
 libpve-common-perl (8.3.4) bookworm; urgency=medium
 
   * inotify/interfaces: use ip link for detecting physical interfaces and
@@ -2652,4 +2659,3 @@ libpve-common-perl (1.0-1) unstable; urgency=low
   * initial package
 
  -- Proxmox Support Team <support@proxmox.com>  Mon, 09 Aug 2010 14:54:24 +0200
-
