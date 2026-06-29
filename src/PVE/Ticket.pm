@@ -5,6 +5,7 @@ use warnings;
 
 use Crypt::OpenSSL::Random;
 use Crypt::OpenSSL::RSA;
+use Net::SSLeay;
 use MIME::Base64;
 use Digest::SHA;
 use Time::HiRes qw(gettimeofday);
@@ -66,7 +67,10 @@ sub assemble_rsa_ticket {
 
     my $full = defined($secret_data) ? "$plain:$secret_data" : $plain;
 
-    my $ticket = $plain . "::" . encode_base64($rsa_priv->sign($full), '');
+    my $sig = $rsa_priv->sign($full);
+    Net::SSLeay::ERR_clear_error();
+
+    my $ticket = $plain . "::" . encode_base64($sig, '');
 
     return $ticket;
 }
@@ -80,7 +84,10 @@ sub verify_rsa_ticket {
 
         my $full = defined($secret_data) ? "$plain:$secret_data" : $plain;
 
-        if ($rsa_pub->verify($full, decode_base64($sig))) {
+        my $valid = $rsa_pub->verify($full, decode_base64($sig));
+        Net::SSLeay::ERR_clear_error();
+
+        if ($valid) {
             if ($plain =~ m/^\Q$prefix\E:(?:(\S+):)?([A-Z0-9]{8})$/) {
                 my $data = $1; # Note: not all tickets contains data
                 my $timestamp = $2;
