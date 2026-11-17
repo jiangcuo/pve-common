@@ -683,16 +683,7 @@ sub activate_bridge_vlan {
 
     my $bridgevlan = "${bridge}v$tag";
 
-    my @ifaces = ();
-    my $dir = "/sys/class/net/$bridge/brif";
-    PVE::Tools::dir_glob_foreach(
-        $dir,
-        '(((eth|bond)\d+|en[^.]+)(\.\d+)?)',
-        sub {
-            push @ifaces, $_[0];
-        },
-    );
-
+    my @ifaces = get_physical_bridge_ports($bridge);
     die "no physical interface on bridge '$bridge'\n" if scalar(@ifaces) == 0;
 
     lock_network(sub {
@@ -952,7 +943,7 @@ sub is_linux_bridge {
     my ($iface_name) = @_;
 
     check_iface_name($iface_name);
-    die "interface $iface_name does not exist\n" if ! -l "/sys/class/net/$iface_name";
+    die "interface $iface_name does not exist\n" if !-l "/sys/class/net/$iface_name";
 
     return -d "/sys/class/net/$iface_name/bridge";
 }
@@ -963,7 +954,7 @@ sub is_ovs_bridge {
     return 0 if is_linux_bridge($bridge);
 
     # no OVS installed, can't be an OVS bridge
-    return 0 if ! -e '/bin/ovs-vsctl';
+    return 0 if !-e '/bin/ovs-vsctl';
 
     # will return 2 if bridge doesn't exist
     my $res = PVE::Tools::run_command(['/bin/ovs-vsctl', 'br-exists', $bridge], noerr => 1);
@@ -973,6 +964,20 @@ sub is_ovs_bridge {
     die "failed to query OVS to determine type of '$bridge': $res\n";
 }
 
+sub get_physical_bridge_ports {
+    my ($bridge, $ip_links) = @_;
+
+    $ip_links = ip_link_details() if !defined($ip_links);
+
+    return grep {
+        (ip_link_is_physical($ip_links->{$_})
+                || ip_link_is_bond($ip_links->{$_})
+                || ip_link_is_vlan($ip_links->{$_}))
+            && defined($ip_links->{$_}->{master})
+            && $ip_links->{$_}->{master} eq $bridge
+    } keys $ip_links->%*;
+}
+
 sub ip_link_details {
     my $link_json = '';
 
@@ -980,7 +985,7 @@ sub ip_link_details {
         ['ip', '-details', '-json', 'link', 'show'],
         outfunc => sub {
             $link_json .= shift;
-        }
+        },
     );
 
     my $links = JSON::decode_json($link_json);
@@ -996,6 +1001,24 @@ sub ip_link_is_physical {
     # ether
     return $ip_link->{link_type} eq 'ether'
         && (!defined($ip_link->{linkinfo}) || !defined($ip_link->{linkinfo}->{info_kind}));
+}
+
+sub ip_link_is_bond {
+    my ($ip_link) = @_;
+    return
+        $ip_link->{link_type} eq 'ether'
+        && defined($ip_link->{linkinfo})
+        && defined($ip_link->{linkinfo}->{info_kind})
+        && $ip_link->{linkinfo}->{info_kind} eq 'bond';
+}
+
+sub ip_link_is_vlan {
+    my ($ip_link) = @_;
+    return
+        $ip_link->{link_type} eq 'ether'
+        && defined($ip_link->{linkinfo})
+        && defined($ip_link->{linkinfo}->{info_kind})
+        && $ip_link->{linkinfo}->{info_kind} eq "vlan";
 }
 
 sub altname_mapping {

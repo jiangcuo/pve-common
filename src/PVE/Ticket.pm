@@ -117,7 +117,7 @@ sub verify_rsa_ticket {
 }
 
 sub assemble_spice_ticket {
-    my ($secret, $username, $vmid, $node) = @_;
+    my ($secret, $username, $vmid, $node, $port) = @_;
 
     my ($seconds, $microseconds) = gettimeofday;
 
@@ -144,6 +144,7 @@ sub assemble_spice_ticket {
     # Note: RSA signature are too long (>=256 charaters) and make problems with remote-viewer
 
     my $plain = "pvespiceproxy:${timestamp}:${vmid}:" . lc($node);
+    $plain .= ":${port}" if defined($port);
 
     # produces 40 characters
     my $sig = unpack("H*", Digest::SHA::sha1($plain, $secret));
@@ -163,7 +164,24 @@ sub verify_spice_connect_url {
 
     return undef if !$connect_str;
 
-    if ($connect_str =~ m/^pvespiceproxy:([a-z0-9]{8}):(\d+):(\S+)::([a-z0-9]{40}):(\d+)$/) {
+    if ($connect_str =~ m/^pvespiceproxy:([a-z0-9]{8}):(\d+):(\S+):(\d+)::([a-z0-9]{40}):(\d+)$/) {
+        my ($timestamp, $vmid, $node, $signed_port, $hexsig, $port) = ($1, $2, $3, $4, $5, $6, $7);
+        my $ttime = hex($timestamp);
+        my $age = time() - $ttime;
+
+        # use very limited lifetime - is this enough?
+        return undef if !(($age > -20) && ($age < 40));
+
+        return undef if $signed_port != $port;
+
+        my $plain = "pvespiceproxy:$timestamp:$vmid:$node:$port";
+        my $sig = unpack("H*", Digest::SHA::sha1($plain, $secret));
+
+        if ($sig eq $hexsig) {
+            return ($vmid, $node, $port);
+        }
+    } elsif ($connect_str =~ m/^pvespiceproxy:([a-z0-9]{8}):(\d+):(\S+)::([a-z0-9]{40}):(\d+)$/) {
+        # FIXME: MAJOR VERSION: drop this fallback for old-style ticket without port
         my ($timestamp, $vmid, $node, $hexsig, $port) = ($1, $2, $3, $4, $5, $6);
         my $ttime = hex($timestamp);
         my $age = time() - $ttime;
@@ -180,6 +198,53 @@ sub verify_spice_connect_url {
     }
 
     return undef;
+}
+
+my sub generate_random_bytes_in_range {
+    my ($length, $min, $max) = @_;
+
+    die "generate_random_bytes_in_range: invalid length $length\n" if $length < 1;
+    die "generate_random_bytes_in_range: invalid max $max\n" if $max > 255;
+    die "generate_random_bytes_in_range: invalid min $min\n" if $min < 0;
+    die "generate_random_bytes_in_range: min $min >= max $max\n" if $min >= $max;
+
+    my $interval_len = $max - $min + 1;
+
+    # Reject values that cannot be mapped to the same interval without adding bias.
+    # Look how many copies of the inclusive interval [$min,$max] can fit and drop the remainder.
+    my $reject_from = 256 - (256 % $interval_len);
+
+    my $count = 0;
+    my $str = '';
+
+    # If 256 is a multiple of the interval length, only 1 try is needed, since every value can be
+    # mapped.
+    # The worst interval length is 129, for which everything from 129 is rejected, but even then,
+    # the expected number of good bytes is still half of the generated ones. With length 1, the
+    # chance to fail is about 2^(-retries). Just use 100, so it should never fail in practice.
+    my $retry = 100;
+    for (my $i = 0; $i < $retry; $i++) {
+        my $rand_bytes = Crypt::OpenSSL::Random::random_bytes($length);
+        die "generate_random_bytes_in_range: failed to generate random bytes!\n" if !$rand_bytes;
+
+        for my $byte (map { ord($_) } split('', $rand_bytes)) {
+            next if $byte >= $reject_from;
+            $str .= chr($min + ($byte % $interval_len));
+            $count++;
+            last if $count == $length;
+        }
+
+        last if $count == $length;
+    }
+
+    die "generate_random_bytes_in_range: failed to generate random bytes after $retry samples!\n"
+        if $count != $length;
+
+    return $str;
+}
+
+sub generate_vnc_password {
+    return generate_random_bytes_in_range(8, ord('!'), ord('`'));
 }
 
 1;
