@@ -247,4 +247,16 @@ sub generate_vnc_password {
     return generate_random_bytes_in_range(8, ord('!'), ord('`'));
 }
 
+sub generate_rdp_username {
+    return generate_random_bytes_in_range(8, ord('a'), ord('z'));
+}
+
+# RDP clients type it: letters, digits and a few plain symbols
+my $rdp_password_chars = join('', 'A' .. 'Z', 'a' .. 'z', '0' .. '9', '-', '_', '.');
+
+sub generate_rdp_password {
+    my $indexes = generate_random_bytes_in_range(12, 0, length($rdp_password_chars) - 1);
+    return join('', map { substr($rdp_password_chars, ord($_), 1) } split('', $indexes));
+}
+
 1;

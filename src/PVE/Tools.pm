@@ -1034,6 +1034,11 @@ sub next_spice_port {
     return next_unused_port(spice_port_range(), $family, $address);
 }
 
+sub next_rdp_port {
+    my ($family, $address) = @_;
+    return next_unused_port(62000, 62999, $family, $address);
+}
+
 sub must_stringify {
     my ($value) = @_;
     eval { $value = "$value" };
