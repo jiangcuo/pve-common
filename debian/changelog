@@ -1,3 +1,13 @@
+libpve-common-perl (8.3.8+pxvirt1) bookworm; urgency=medium
+
+  * merge upstream 8.3.8.
+
+  * tools: add next_rdp_port.
+
+  * ticket: add generate_rdp_username and generate_rdp_password.
+
+ -- Lierfang Support Team <itsupport@lierfang.com>  Tue, 17 Nov 2026 16:36:29 +0800
+
 libpve-common-perl (8.3.8) bookworm; urgency=medium
 
   * ticket: support encoding and verifying port for spice tickets as a
